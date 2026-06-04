@@ -235,6 +235,13 @@ const (
 	MetricZramOriginDataSize = "zram.origin.usage.system"
 )
 
+// System disk metrics
+const (
+	MetricDiskTotal = "disk.total.system"
+	MetricDiskFree  = "disk.free.system"
+	MetricDiskUsage = "disk.usage.system"
+)
+
 // container cpu metrics
 const (
 	MetricCPULimitContainer      = "cpu.limit.container"
@@ -338,6 +345,8 @@ const (
 	MetricMbmlocalPsContainer  = "mbm.local.ps.container"
 	MetricMbmVictimPsContainer = "mbm.victim.ps.container"
 	MetricResctrlDataContainer = "resctrl.data.container"
+
+	MetricMbmTotalPsContainerL3 = "mbm.total.ps.container.l3"
 )
 
 // container blkio metrics

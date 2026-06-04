@@ -116,15 +116,24 @@ func (ai *AllocationInfo) GetResourceAllocation() (*pluginapi.ResourceAllocation
 		return nil, fmt.Errorf("GetResourceAllocation of nil AllocationInfo")
 	}
 
+	// build per-NUMA topology assignments so that downstream consumers can see the
+	// numa-level breakdown of the aggregated allocation, mirroring the behavior of
+	// PodResourceEntries.GetResourceAllocation.
+	topologyAssignments := make(map[uint64]uint64)
+	for numaID, quantity := range ai.TopologyAwareAllocations {
+		topologyAssignments[uint64(numaID)] = quantity
+	}
+
 	// deal with main resource
 	resourceAllocation := &pluginapi.ResourceAllocation{
 		ResourceAllocation: map[string]*pluginapi.ResourceAllocationInfo{
 			string(v1.ResourceMemory): {
-				OciPropertyName:   util.OCIPropertyNameCPUSetMems,
-				IsNodeResource:    false,
-				IsScalarResource:  true,
-				AllocatedQuantity: float64(ai.AggregatedQuantity),
-				AllocationResult:  ai.NumaAllocationResult.String(),
+				OciPropertyName:     util.OCIPropertyNameCPUSetMems,
+				IsNodeResource:      false,
+				IsScalarResource:    true,
+				AllocatedQuantity:   float64(ai.AggregatedQuantity),
+				AllocationResult:    ai.NumaAllocationResult.String(),
+				TopologyAssignments: topologyAssignments,
 			},
 		},
 	}
@@ -201,6 +210,56 @@ func (pre PodResourceEntries) Clone() PodResourceEntries {
 		clone[resourceName] = podEntries.Clone()
 	}
 	return clone
+}
+
+// GetResourceAllocation gets the ResourceAllocation of every resource of a certain pod UID and container name.
+func (pre PodResourceEntries) GetResourceAllocation(podUID, containerName string) (*pluginapi.ResourceAllocation, error) {
+	if pre == nil {
+		return nil, fmt.Errorf("GetResourceAllocation of nil PodResourceEntries")
+	}
+
+	resourceAllocation := make(map[string]*pluginapi.ResourceAllocationInfo)
+
+	for resourceName, podEntries := range pre {
+		allocationInfo := podEntries[podUID][containerName]
+		if allocationInfo == nil {
+			continue
+		}
+
+		topologyAssignments := make(map[uint64]uint64)
+		for numaID, quantity := range allocationInfo.TopologyAwareAllocations {
+			topologyAssignments[uint64(numaID)] = quantity
+		}
+
+		resourceAllocation[string(resourceName)] = &pluginapi.ResourceAllocationInfo{
+			OciPropertyName:     util.OCIPropertyNameCPUSetMems,
+			IsNodeResource:      false,
+			IsScalarResource:    true,
+			AllocatedQuantity:   float64(allocationInfo.AggregatedQuantity),
+			AllocationResult:    allocationInfo.NumaAllocationResult.String(),
+			TopologyAssignments: topologyAssignments,
+		}
+
+		// deal with accompanying resources
+		for name, entry := range allocationInfo.ExtraControlKnobInfo {
+			if entry.OciPropertyName == "" {
+				continue
+			}
+
+			if resourceAllocation[name] != nil {
+				return nil, fmt.Errorf("name: %s meets conflict", name)
+			}
+
+			resourceAllocation[name] = &pluginapi.ResourceAllocationInfo{
+				OciPropertyName:  entry.OciPropertyName,
+				AllocationResult: entry.ControlKnobValue,
+			}
+		}
+	}
+
+	return &pluginapi.ResourceAllocation{
+		ResourceAllocation: resourceAllocation,
+	}, nil
 }
 
 func (ns *NUMANodeState) String() string {
@@ -487,6 +546,9 @@ type reader interface {
 	GetNUMAHeadroom() map[int]int64
 	GetPodResourceEntries() PodResourceEntries
 	GetAllocationInfo(resourceName v1.ResourceName, podUID, containerName string) *AllocationInfo
+	// GetResourceAllocationInfo gets the allocationInfo of all resources of a specific container.
+	// Returns nil if there is no such container in state.
+	GetResourceAllocationInfo(podUID, containerName string) map[v1.ResourceName]*AllocationInfo
 }
 
 // writer is used to store information into local states,
@@ -507,6 +569,8 @@ type ReadonlyState interface {
 	reader
 
 	GetMachineInfo() *info.MachineInfo
+	// GetMemoryTopology returns the memory topology info (including NormalMemoryDetails etc.)
+	GetMemoryTopology() *machine.MemoryTopology
 	GetReservedMemory() map[v1.ResourceName]map[int]uint64
 }
 

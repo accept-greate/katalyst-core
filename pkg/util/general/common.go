@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -515,4 +516,48 @@ func ConvertLinuxListToString(numbers []int64) string {
 		result.WriteString(",")
 	}
 	return strings.TrimRight(result.String(), ",")
+}
+
+// ParseSelector returns a labels.Selector from the given string.
+//
+// Note: an empty string is treated as "match nothing" (returns labels.Nothing()),
+// not "match everything". Any caller that exposes this selector through a flag
+// must document this semantic explicitly so that operators do not assume the
+// opposite default.
+func ParseSelector(selectorStr string) (labels.Selector, error) {
+	if selectorStr == "" {
+		return labels.Nothing(), nil
+	}
+	return labels.Parse(selectorStr)
+}
+
+// MergeAnnotations merges multiple annotation maps into a single map.
+//
+// Override semantics: when multiple maps contain the same key, later maps override
+// earlier ones (right-most wins). Empty/nil inputs are skipped; if all inputs are
+// empty, nil is returned to preserve compatibility with callers that distinguish
+// nil from an empty map.
+func MergeAnnotations(annotations ...map[string]string) map[string]string {
+	// For compatibility, no annotations returns nil map
+	if len(annotations) == 0 {
+		return nil
+	}
+
+	var mergedAnnotations map[string]string
+	for _, annotation := range annotations {
+		if len(annotation) == 0 {
+			continue
+		}
+
+		// Only allocate when there is a non-empty allocation
+		if mergedAnnotations == nil {
+			mergedAnnotations = make(map[string]string)
+		}
+
+		for k, v := range annotation {
+			mergedAnnotations[k] = v
+		}
+	}
+
+	return mergedAnnotations
 }

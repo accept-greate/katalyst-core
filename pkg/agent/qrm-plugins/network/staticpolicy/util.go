@@ -24,6 +24,7 @@ import (
 
 	pluginapi "k8s.io/kubelet/pkg/apis/resourceplugin/v1alpha1"
 
+	"github.com/kubewharf/katalyst-api/pkg/apis/node/v1alpha1"
 	"github.com/kubewharf/katalyst-api/pkg/consts"
 	apiconsts "github.com/kubewharf/katalyst-api/pkg/consts"
 	"github.com/kubewharf/katalyst-core/cmd/katalyst-agent/app/agent"
@@ -50,12 +51,6 @@ const (
 )
 
 type NICFilter func(nics []machine.InterfaceInfo, req *pluginapi.ResourceRequest, agentCtx *agent.GenericContext) []machine.InterfaceInfo
-
-// isReqAffinityRestricted returns true if allocated network interface must have affinity with allocated numa
-func isReqAffinityRestricted(reqAnnotations map[string]string) bool {
-	return reqAnnotations[consts.PodAnnotationNetworkEnhancementAffinityRestricted] ==
-		consts.PodAnnotationNetworkEnhancementAffinityRestrictedTrue
-}
 
 // checkNICPreferenceOfReq returns true if allocate network interface matches up with the
 // preference of requests, and it will return error if it breaks hard restrictions.
@@ -238,7 +233,7 @@ func selectOneNIC(nics []machine.InterfaceInfo, policy NICSelectionPoligy) machi
 }
 
 // packAllocationResponse fills pluginapi.ResourceAllocationResponse with information from AllocationInfo and pluginapi.ResourceRequest
-func packAllocationResponse(req *pluginapi.ResourceRequest, allocationInfo *state.AllocationInfo, resourceAllocationAnnotations map[string]string) (*pluginapi.ResourceAllocationResponse, error) {
+func packAllocationResponse(req *pluginapi.ResourceRequest, allocationInfo *state.AllocationInfo, resourceAllocationAnnotations ...map[string]string) (*pluginapi.ResourceAllocationResponse, error) {
 	if allocationInfo == nil {
 		return nil, fmt.Errorf("packAllocationResponse got nil allocationInfo")
 	} else if req == nil {
@@ -262,7 +257,7 @@ func packAllocationResponse(req *pluginapi.ResourceRequest, allocationInfo *stat
 					IsScalarResource:  true, // to avoid re-allocating
 					AllocatedQuantity: float64(allocationInfo.Egress),
 					AllocationResult:  allocationInfo.NumaNodes.String(),
-					Annotations:       resourceAllocationAnnotations,
+					Annotations:       general.MergeAnnotations(resourceAllocationAnnotations...),
 					ResourceHints: &pluginapi.ListOfTopologyHints{
 						Hints: []*pluginapi.TopologyHint{
 							req.Hint,
@@ -274,6 +269,22 @@ func packAllocationResponse(req *pluginapi.ResourceRequest, allocationInfo *stat
 		Labels:      general.DeepCopyMap(req.Labels),
 		Annotations: general.DeepCopyMap(req.Annotations),
 	}, nil
+}
+
+// getNetworkTopologyAllocationsAnnotations gets the network topology allocation and merges it with current annotations.
+func getNetworkTopologyAllocationsAnnotations(allocationInfo *state.AllocationInfo, currentAnnotations map[string]string,
+	topologyAllocationAnnotationKey string,
+) map[string]string {
+	if allocationInfo == nil {
+		return currentAnnotations
+	}
+
+	topologyAllocation := make(v1alpha1.TopologyAllocation)
+	topologyAllocation[v1alpha1.TopologyTypeNIC] = make(map[string]v1alpha1.ZoneAllocation)
+	topologyAllocation[v1alpha1.TopologyTypeNIC][allocationInfo.Identifier] = v1alpha1.ZoneAllocation{}
+
+	newAnnotations := qrmutil.MakeTopologyAllocationResourceAllocationAnnotations(topologyAllocation, topologyAllocationAnnotationKey)
+	return general.MergeAnnotations(newAnnotations, currentAnnotations)
 }
 
 // getReservedBandwidth is used to spread total reserved bandwidth into per-nic level.
