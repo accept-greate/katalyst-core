@@ -18,6 +18,7 @@ package eviction
 
 import (
 	cliflag "k8s.io/component-base/cli/flag"
+	"k8s.io/klog/v2"
 
 	"github.com/kubewharf/katalyst-core/pkg/config/agent/dynamic/adminqos/eviction"
 )
@@ -90,6 +91,7 @@ func (o *NumaCPUPressureEvictionOptions) ApplyTo(c *eviction.NumaCPUPressureEvic
 	c.GracePeriod = o.GracePeriod
 	c.ThresholdExpandFactor = o.ThresholdExpandFactor
 	c.CpuUsageRatioThreshold = o.CpuUsageRatioThreshold
+	klog.Infof("set numa cpu pressure eviction CpuUsageRatioThreshold to %v from command options", c.CpuUsageRatioThreshold)
 	c.CandidateCount = o.CandidateCount
 	c.WorkloadMetricsLabelKeys = o.WorkloadMetricsLabelKeys
 	c.SkippedPodKinds = o.SkippedPodKinds

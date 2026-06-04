@@ -18,6 +18,7 @@ package eviction
 
 import (
 	"github.com/kubewharf/katalyst-core/pkg/config/agent/dynamic/crd"
+	"github.com/kubewharf/katalyst-core/pkg/util/general"
 )
 
 type NumaCPUPressureEvictionConfiguration struct {
@@ -63,9 +64,11 @@ func (n *NumaCPUPressureEvictionConfiguration) ApplyConfiguration(conf *crd.Dyna
 			n.ThresholdExpandFactor = *config.ThresholdExpandFactor
 		}
 
-		// TODO: Uncomment after katalyst-api adds CpuUsageRatioThreshold field to NumaCPUPressureEvictionConfig
 		if config.CpuUsageRatioThreshold != nil {
+			oldValue := n.CpuUsageRatioThreshold
 			n.CpuUsageRatioThreshold = *config.CpuUsageRatioThreshold
+			general.Infof("update numa cpu pressure eviction CpuUsageRatioThreshold from %v to %v via AdminQoSConfiguration",
+				oldValue, n.CpuUsageRatioThreshold)
 		}
 
 		if config.CandidateCount != nil {
