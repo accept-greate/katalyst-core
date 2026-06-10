@@ -66,7 +66,8 @@ func (n *NumaCPUPressureEvictionConfiguration) ApplyConfiguration(conf *crd.Dyna
 	}
 
 	config := conf.AdminQoSConfiguration.Spec.Config.EvictionConfig.CPUPressureEvictionConfig.NumaCPUPressureEvictionConfig
-	general.Infof("[DEBUG-AQC] NumaCPUPressureEvictionConfig extracted, CpuUsageRatioThreshold pointer is nil: %v", config.CpuUsageRatioThreshold == nil)
+	general.Infof("[DEBUG-AQC] NumaCPUPressureEvictionConfig extracted, ThresholdExpandFactor pointer is nil: %v, CpuUsageRatioThreshold pointer is nil: %v",
+		config.ThresholdExpandFactor == nil, config.CpuUsageRatioThreshold == nil)
 
 	if config.EnableEviction != nil {
 		n.EnableEviction = *config.EnableEviction
@@ -85,7 +86,10 @@ func (n *NumaCPUPressureEvictionConfiguration) ApplyConfiguration(conf *crd.Dyna
 	}
 
 	if config.ThresholdExpandFactor != nil {
+		oldValue := n.ThresholdExpandFactor
 		n.ThresholdExpandFactor = *config.ThresholdExpandFactor
+		general.Infof("update numa cpu pressure eviction ThresholdExpandFactor from %v to %v via AdminQoSConfiguration",
+			oldValue, n.ThresholdExpandFactor)
 	}
 
 	if config.CpuUsageRatioThreshold != nil {

@@ -45,7 +45,7 @@ func NewNumaCPUPressureEvictionOptions() NumaCPUPressureEvictionOptions {
 		MetricRingSize:                 4,
 		GracePeriod:                    -1,
 		ThresholdExpandFactor:          7.0 / 6.0,
-		CpuUsageRatioThreshold:         0.6,
+		CpuUsageRatioThreshold:         0.55,
 		CandidateCount:                 2,
 		WorkloadMetricsLabelKeys:       []string{},
 		SkippedPodKinds:                []string{},
@@ -90,6 +90,7 @@ func (o *NumaCPUPressureEvictionOptions) ApplyTo(c *eviction.NumaCPUPressureEvic
 	c.MetricRingSize = o.MetricRingSize
 	c.GracePeriod = o.GracePeriod
 	c.ThresholdExpandFactor = o.ThresholdExpandFactor
+	klog.Infof("set numa cpu pressure eviction ThresholdExpandFactor to %v from command options", c.ThresholdExpandFactor)
 	c.CpuUsageRatioThreshold = o.CpuUsageRatioThreshold
 	klog.Infof("set numa cpu pressure eviction CpuUsageRatioThreshold to %v from command options", c.CpuUsageRatioThreshold)
 	c.CandidateCount = o.CandidateCount
