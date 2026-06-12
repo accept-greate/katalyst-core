@@ -74,11 +74,13 @@ const (
 
 	reservedReclaimedCPUsSize = 4
 
-	cpusetCheckPeriod  = 10 * time.Second
-	stateCheckPeriod   = 30 * time.Second
-	maxResidualTime    = 5 * time.Minute
-	syncCPUIdlePeriod  = 30 * time.Second
-	syncCPUBurstPeriod = 10 * time.Second
+	cpusetCheckPeriod             = 10 * time.Second
+	stateCheckPeriod              = 30 * time.Second
+	maxResidualTime               = 5 * time.Minute
+	syncCPUIdlePeriod             = 30 * time.Second
+	syncCPUBurstPeriod            = 10 * time.Second
+	syncSystemExclusivePoolPeriod = 10 * time.Second
+	syncCPUWeightPeriod           = 10 * time.Second
 
 	healthCheckTolerationTimes = 3
 )
@@ -399,6 +401,12 @@ func (p *DynamicPolicy) Start() (err error) {
 		general.Errorf("start %v failed,err:%v", cpuconsts.CheckCPUSet, err)
 	}
 
+	err = periodicalhandler.RegisterPeriodicalHandlerWithHealthz(cpuconsts.SyncSystemExclusivePool, general.HealthzCheckStateNotReady,
+		qrm.QRMCPUPluginPeriodicalHandlerGroupName, p.syncSystemExclusivePool, syncSystemExclusivePoolPeriod, healthCheckTolerationTimes)
+	if err != nil {
+		general.Errorf("start %v failed,err:%v", cpuconsts.SyncSystemExclusivePool, err)
+	}
+
 	// start cpu-idle syncing if needed
 	if p.enableSyncingCPUIdle {
 		general.Infof("syncCPUIdle enabled")
@@ -422,6 +430,16 @@ func (p *DynamicPolicy) Start() (err error) {
 			qrm.QRMCPUPluginPeriodicalHandlerGroupName, p.syncCPUBurst, syncCPUBurstPeriod, healthCheckTolerationTimes)
 		if err != nil {
 			general.Errorf("start %v failed,err:%v", cpuconsts.SyncCPUBurst, err)
+		}
+	}
+
+	if p.conf.CPUQRMPluginConfig.EnableCPUWeight {
+		general.Infof("cpu weight is enabled")
+
+		err = periodicalhandler.RegisterPeriodicalHandlerWithHealthz(cpuconsts.SyncCPUWeight, general.HealthzCheckStateNotReady,
+			qrm.QRMCPUPluginPeriodicalHandlerGroupName, p.syncCPUWeight, syncCPUWeightPeriod, healthCheckTolerationTimes)
+		if err != nil {
+			general.Errorf("start %v failed,err:%v", cpuconsts.SyncCPUWeight, err)
 		}
 	}
 
@@ -1266,6 +1284,10 @@ func (p *DynamicPolicy) cleanPools() error {
 	poolsToDelete := sets.NewString()
 	for poolName, entries := range podEntries {
 		if entries.IsPoolEntry() {
+			// system pool is managed separately, should skip it
+			if commonstate.IsSystemPool(poolName) {
+				continue
+			}
 			if !remainPools[poolName] && !state.ResidentPools.Has(poolName) {
 				poolsToDelete.Insert(poolName)
 			}
