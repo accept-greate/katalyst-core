@@ -30,24 +30,24 @@ func TestNumaCPUPressureEvictionConfiguration_ApplyConfiguration_CRDNil(t *testi
 	t.Parallel()
 
 	c := NumaCPUPressureEvictionConfiguration{
-		ThresholdExpandFactor:  7.0 / 6.0,
-		CpuUsageRatioThreshold: 0.6,
+		ThresholdExpandFactor:  0.7 / 0.55,
+		CpuUsageRatioThreshold: 0.55,
 	}
 
 	c.ApplyConfiguration(&crd.DynamicConfigCRD{})
 
-	assert.Equal(t, 0.6, c.CpuUsageRatioThreshold,
-		"when CRD is nil, CpuUsageRatioThreshold should remain unchanged (Options default 0.6)")
-	assert.Equal(t, 7.0/6.0, c.ThresholdExpandFactor,
-		"when CRD is nil, ThresholdExpandFactor should remain unchanged (Options default 7/6)")
+	assert.Equal(t, 0.55, c.CpuUsageRatioThreshold,
+		"when CRD is nil, CpuUsageRatioThreshold should remain unchanged (Options default 0.55)")
+	assert.Equal(t, 0.7/0.55, c.ThresholdExpandFactor,
+		"when CRD is nil, ThresholdExpandFactor should remain unchanged (Options default 0.7/0.55)")
 }
 
 func TestNumaCPUPressureEvictionConfiguration_ApplyConfiguration_CRDEmptyField(t *testing.T) {
 	t.Parallel()
 
 	c := NumaCPUPressureEvictionConfiguration{
-		ThresholdExpandFactor:  7.0 / 6.0,
-		CpuUsageRatioThreshold: 0.6,
+		ThresholdExpandFactor:  0.7 / 0.55,
+		CpuUsageRatioThreshold: 0.55,
 	}
 
 	conf := &crd.DynamicConfigCRD{
@@ -66,19 +66,19 @@ func TestNumaCPUPressureEvictionConfiguration_ApplyConfiguration_CRDEmptyField(t
 
 	c.ApplyConfiguration(conf)
 
-	assert.Equal(t, 0.6, c.CpuUsageRatioThreshold,
+	assert.Equal(t, 0.55, c.CpuUsageRatioThreshold,
 		"when CRD NumaCPUPressureEvictionConfig exists but CpuUsageRatioThreshold field is nil "+
-			"(not yet in katalyst-api), CpuUsageRatioThreshold should remain 0.6")
-	assert.Equal(t, 7.0/6.0, c.ThresholdExpandFactor,
-		"when CRD ThresholdExpandFactor is nil, it should remain 7/6")
+			"(not yet in katalyst-api), CpuUsageRatioThreshold should remain 0.55")
+	assert.Equal(t, 0.7/0.55, c.ThresholdExpandFactor,
+		"when CRD ThresholdExpandFactor is nil, it should remain 0.7/0.55")
 }
 
 func TestNumaCPUPressureEvictionConfiguration_ApplyConfiguration_CRDThresholdExpandFactorOverride(t *testing.T) {
 	t.Parallel()
 
 	c := NumaCPUPressureEvictionConfiguration{
-		ThresholdExpandFactor:  7.0 / 6.0,
-		CpuUsageRatioThreshold: 0.6,
+		ThresholdExpandFactor:  0.7 / 0.55,
+		CpuUsageRatioThreshold: 0.55,
 	}
 
 	expandFactorOverride := 1.3
@@ -102,16 +102,16 @@ func TestNumaCPUPressureEvictionConfiguration_ApplyConfiguration_CRDThresholdExp
 
 	assert.Equal(t, 1.3, c.ThresholdExpandFactor,
 		"when CRD ThresholdExpandFactor is set, it should override the Options default value")
-	assert.Equal(t, 0.6, c.CpuUsageRatioThreshold,
-		"when CRD CpuUsageRatioThreshold is nil (not yet in katalyst-api), it should remain 0.6")
+	assert.Equal(t, 0.55, c.CpuUsageRatioThreshold,
+		"when CRD CpuUsageRatioThreshold is nil (not yet in katalyst-api), it should remain 0.55")
 }
 
 func TestNumaCPUPressureEvictionConfiguration_EvictionTriggerLine(t *testing.T) {
 	t.Parallel()
 
 	c := NumaCPUPressureEvictionConfiguration{
-		ThresholdExpandFactor:  7.0 / 6.0,
-		CpuUsageRatioThreshold: 0.6,
+		ThresholdExpandFactor:  0.7 / 0.55,
+		CpuUsageRatioThreshold: 0.55,
 	}
 
 	evictionTriggerLine := c.CpuUsageRatioThreshold * c.ThresholdExpandFactor
@@ -119,11 +119,11 @@ func TestNumaCPUPressureEvictionConfiguration_EvictionTriggerLine(t *testing.T) 
 	buffer := evictionTriggerLine - safetyLine
 
 	assert.InDelta(t, 0.7, evictionTriggerLine, 1e-9,
-		"eviction trigger line = CpuUsageRatioThreshold * ThresholdExpandFactor = 0.6 * 7/6 = 0.7")
-	assert.InDelta(t, 0.6, safetyLine, 1e-9,
-		"safety line = evictionTriggerLine / ThresholdExpandFactor = 0.7 / (7/6) = 0.6")
-	assert.InDelta(t, 0.1, buffer, 1e-9,
-		"buffer = evictionTriggerLine - safetyLine = 0.7 - 0.6 = 0.1")
+		"eviction trigger line = CpuUsageRatioThreshold * ThresholdExpandFactor = 0.55 * (0.7/0.55) = 0.7")
+	assert.InDelta(t, 0.55, safetyLine, 1e-9,
+		"safety line = evictionTriggerLine / ThresholdExpandFactor = 0.55")
+	assert.InDelta(t, 0.15, buffer, 1e-9,
+		"buffer = evictionTriggerLine - safetyLine = 0.7 - 0.55 = 0.15")
 }
 
 func TestPullThresholds_CpuUsageRatioThresholdPriority(t *testing.T) {
@@ -139,16 +139,16 @@ func TestPullThresholds_CpuUsageRatioThresholdPriority(t *testing.T) {
 	}{
 		{
 			name:                   "CpuUsageRatioThreshold > 0: use AQC value",
-			cpuUsageRatioThreshold: 0.6,
-			expandFactor:           7.0 / 6.0,
+			cpuUsageRatioThreshold: 0.55,
+			expandFactor:           0.7 / 0.55,
 			wantUseAQC:             true,
-			wantThresholdValue:     0.6,
+			wantThresholdValue:     0.55,
 			wantEvictionLine:       0.7,
 		},
 		{
 			name:                   "CpuUsageRatioThreshold = 0: fallback to NPD/MetricThresholdConfiguration",
 			cpuUsageRatioThreshold: 0,
-			expandFactor:           7.0 / 6.0,
+			expandFactor:           0.7 / 0.55,
 			wantUseAQC:             false,
 			wantThresholdValue:     0,
 			wantEvictionLine:       0,
@@ -200,8 +200,8 @@ func TestNumaCPUPressureEvictionConfiguration_FullDataFlow(t *testing.T) {
 	t.Parallel()
 
 	c := NumaCPUPressureEvictionConfiguration{
-		ThresholdExpandFactor:  7.0 / 6.0,
-		CpuUsageRatioThreshold: 0.6,
+		ThresholdExpandFactor:  0.7 / 0.55,
+		CpuUsageRatioThreshold: 0.55,
 	}
 
 	c.ApplyConfiguration(&crd.DynamicConfigCRD{})
@@ -230,6 +230,6 @@ func TestNumaCPUPressureEvictionConfiguration_FullDataFlow(t *testing.T) {
 
 	assert.InDelta(t, 0.7, evictionTriggerLine, 1e-9,
 		"full data flow: eviction trigger line should be 0.7 (70%%)")
-	assert.InDelta(t, 0.6, safetyLine, 1e-9,
-		"full data flow: safety line should be 0.6 (60%%)")
+	assert.InDelta(t, 0.55, safetyLine, 1e-9,
+		"full data flow: safety line should be 0.55 (55%%)")
 }

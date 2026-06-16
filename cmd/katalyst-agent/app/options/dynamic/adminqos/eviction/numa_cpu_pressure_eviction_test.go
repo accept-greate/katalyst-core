@@ -28,8 +28,8 @@ func TestNumaCPUPressureEvictionOptions_Defaults(t *testing.T) {
 	t.Parallel()
 
 	o := NewNumaCPUPressureEvictionOptions()
-	assert.Equal(t, 7.0/6.0, o.ThresholdExpandFactor, "ThresholdExpandFactor default should be 7/6")
-	assert.Equal(t, 0.6, o.CpuUsageRatioThreshold, "CpuUsageRatioThreshold default should be 0.6")
+	assert.Equal(t, 0.7/0.55, o.ThresholdExpandFactor, "ThresholdExpandFactor default should be 0.7/0.55")
+	assert.Equal(t, 0.55, o.CpuUsageRatioThreshold, "CpuUsageRatioThreshold default should be 0.55")
 }
 
 func TestNumaCPUPressureEvictionOptions_ApplyTo(t *testing.T) {
@@ -40,8 +40,8 @@ func TestNumaCPUPressureEvictionOptions_ApplyTo(t *testing.T) {
 
 	err := o.ApplyTo(&c)
 	assert.NoError(t, err)
-	assert.Equal(t, 7.0/6.0, c.ThresholdExpandFactor, "ApplyTo should propagate ThresholdExpandFactor from Options")
-	assert.Equal(t, 0.6, c.CpuUsageRatioThreshold, "ApplyTo should propagate CpuUsageRatioThreshold from Options")
+	assert.Equal(t, 0.7/0.55, c.ThresholdExpandFactor, "ApplyTo should propagate ThresholdExpandFactor from Options")
+	assert.Equal(t, 0.55, c.CpuUsageRatioThreshold, "ApplyTo should propagate CpuUsageRatioThreshold from Options")
 }
 
 func TestNumaCPUPressureEvictionOptions_ApplyTo_CustomValues(t *testing.T) {
@@ -63,7 +63,7 @@ func TestNumaCPUPressureEvictionOptions_ApplyTo_ZeroCpuUsageRatioThreshold(t *te
 	t.Parallel()
 
 	o := NumaCPUPressureEvictionOptions{
-		ThresholdExpandFactor:  7.0 / 6.0,
+		ThresholdExpandFactor:  0.7 / 0.55,
 		CpuUsageRatioThreshold: 0,
 	}
 	c := pkgeviction.NumaCPUPressureEvictionConfiguration{}
@@ -85,7 +85,7 @@ func TestNumaCPUPressureEvictionOptions_EvictionTriggerLine(t *testing.T) {
 	safetyLine := evictionTriggerLine / c.ThresholdExpandFactor
 
 	assert.InDelta(t, 0.7, evictionTriggerLine, 1e-9,
-		"eviction trigger line = 0.6 * 7/6 = 0.7")
-	assert.InDelta(t, 0.6, safetyLine, 1e-9,
-		"safety line = 0.7 / (7/6) = 0.6")
+		"eviction trigger line = 0.55 * (0.7/0.55) = 0.7")
+	assert.InDelta(t, 0.55, safetyLine, 1e-9,
+		"safety line = 0.7 / (0.7/0.55) = 0.55")
 }
